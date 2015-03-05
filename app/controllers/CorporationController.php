@@ -211,8 +211,14 @@ class CorporationController extends BaseController
         $members = DB::table(DB::raw('corporation_member_tracking as cmt'))
             ->select(DB::raw('cmt.characterID, cmt.name, cmt.startDateTime, cmt.title, cmt.logonDateTime, cmt.logoffDateTime, cmt.location, cmt.shipType, k.keyID, k.isOk'))
             ->leftJoin(DB::raw('account_apikeyinfo_characters'), 'cmt.characterID', '=', 'account_apikeyinfo_characters.characterID')
-            ->leftJoin(DB::raw('seat_keys as k'), 'account_apikeyinfo_characters.keyID', '=', 'k.keyID')
-            ->leftJoin(DB::raw('account_apikeyinfo as ap'), 'k.keyID', '=', 'ap.keyID')
+            #we go through accout_apikeyinfo to see what API keys we count as being "Ok".  Right now the only rule is that keys must not be corp keys,
+            # but later we can add more rules like required access level.
+            ->leftJoin(DB::raw('account_apikeyinfo as ap'), function($join)
+                {
+                    $join->on('account_apikeyinfo_characters.keyID', '=', 'ap.keyID');
+                    $join->on('ap.type', '<>', DB::raw("'Corporation'"));
+                })
+            ->leftJoin(DB::raw('seat_keys as k'), 'ap.keyID', '=', 'k.keyID')
             ->where('cmt.corporationID', $corporationID)
             ->orderBy('k.isOk', 'asc')
             ->orderBy('cmt.name', 'asc')
